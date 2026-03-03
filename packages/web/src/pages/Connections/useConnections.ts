@@ -29,6 +29,37 @@ const configSubscriptions = new Map<ConnectionId, () => void>();
 
 const HEARTBEAT_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 const CONFIG_HEARTBEAT_INTERVAL_MS = 5000; // 5s during configuration
+const DEFAULT_SERVER_CONNECTION_NAME = "Default Meshtastic Server";
+
+const normalizeHttpEndpoint = (rawUrl: string): string => {
+  try {
+    const url = new URL(rawUrl.trim());
+    url.hash = "";
+    url.search = "";
+    return url.toString().replace(/\/$/, "");
+  } catch {
+    return rawUrl.trim().replace(/\/$/, "");
+  }
+};
+
+const parseBooleanEnv = (value?: string): boolean =>
+  /^(1|true|yes|on)$/i.test((value ?? "").trim());
+
+const defaultMeshtasticUrl = (import.meta.env.VITE_DEFAULT_MESHTASTIC_URL ?? "")
+  .toString()
+  .trim();
+
+export const DEFAULT_SERVER_CONNECTION_URL = defaultMeshtasticUrl
+  ? normalizeHttpEndpoint(defaultMeshtasticUrl)
+  : undefined;
+
+export const AUTO_CONNECT_DEFAULT_SERVER_CONNECTION = parseBooleanEnv(
+  import.meta.env.VITE_DEFAULT_MESHTASTIC_AUTOCONNECT,
+);
+
+export const ALERT_ON_CONNECTION_FAILURE = parseBooleanEnv(
+  import.meta.env.VITE_DEFAULT_MESHTASTIC_ALERT_ON_FAIL,
+);
 
 export function useConnections() {
   const connections = useDeviceStore((s) => s.savedConnections);
@@ -167,8 +198,9 @@ export function useConnections() {
       subscribeAll(device, meshDevice, messageStore, nodeDB);
 
       // Store transport locally for cleanup (BT/Serial only)
-      if (btDevice || serialPort) {
-        transports.set(id, btDevice || serialPort);
+      const transportHandle = btDevice ?? serialPort;
+      if (transportHandle) {
+        transports.set(id, transportHandle);
       }
 
       // Set active connection and link device bidirectionally
@@ -520,6 +552,38 @@ export function useConnections() {
     [addConnection, connect],
   );
 
+  const ensureServerConnection = useCallback((): ConnectionId | undefined => {
+    if (!DEFAULT_SERVER_CONNECTION_URL) {
+      return undefined;
+    }
+
+    const store = useDeviceStore.getState();
+    const existing = store.savedConnections.find(
+      (connection) =>
+        connection.type === "http" &&
+        normalizeHttpEndpoint(connection.url) === DEFAULT_SERVER_CONNECTION_URL,
+    );
+
+    if (existing) {
+      if (!existing.isDefault) {
+        store.updateSavedConnection(existing.id, { isDefault: true });
+      }
+      return existing.id;
+    }
+
+    const defaultConnection: Connection = {
+      id: randId(),
+      type: "http",
+      name: DEFAULT_SERVER_CONNECTION_NAME,
+      url: DEFAULT_SERVER_CONNECTION_URL,
+      createdAt: Date.now(),
+      status: "disconnected",
+      isDefault: true,
+    };
+    store.addSavedConnection(defaultConnection);
+    return defaultConnection.id;
+  }, []);
+
   const refreshStatuses = useCallback(async () => {
     // Check reachability/availability without auto-connecting
     // HTTP: test endpoint reachability
@@ -654,6 +718,7 @@ export function useConnections() {
     disconnect,
     removeConnection,
     setDefaultConnection,
+    ensureServerConnection,
     refreshStatuses,
     syncConnectionStatuses,
   };

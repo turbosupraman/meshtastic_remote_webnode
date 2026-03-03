@@ -99,6 +99,17 @@ Start the development server:
 pnpm run dev
 ```
 
+### Optional environment variables
+
+The following `VITE_` variables are optional for self-hosted deployments:
+
+- `VITE_DEFAULT_MESHTASTIC_URL`: Default HTTP endpoint to pre-populate in
+  Connections (example: `http://127.0.0.1:4403`).
+- `VITE_DEFAULT_MESHTASTIC_AUTOCONNECT`: Auto-connect to the default HTTP
+  connection on page load when set to `true`/`1`/`yes`/`on`.
+- `VITE_DEFAULT_MESHTASTIC_ALERT_ON_FAIL`: Show a browser alert if a connection
+  attempt fails when set to `true`/`1`/`yes`/`on`.
+
 ### Building and Packaging
 
 Build the project:

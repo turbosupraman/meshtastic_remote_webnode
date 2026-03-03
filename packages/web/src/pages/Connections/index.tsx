@@ -3,7 +3,12 @@ import { TimeAgo } from "@app/components/generic/TimeAgo";
 import LanguageSwitcher from "@app/components/LanguageSwitcher";
 import { ConnectionStatusBadge } from "@app/components/PageComponents/Connections/ConnectionStatusBadge";
 import type { Connection } from "@app/core/stores/deviceStore/types";
-import { useConnections } from "@app/pages/Connections/useConnections";
+import {
+  ALERT_ON_CONNECTION_FAILURE,
+  AUTO_CONNECT_DEFAULT_SERVER_CONNECTION,
+  DEFAULT_SERVER_CONNECTION_URL,
+  useConnections,
+} from "@app/pages/Connections/useConnections";
 import {
   connectionTypeIcon,
   formatConnectionSubtext,
@@ -58,21 +63,67 @@ export const Connections = () => {
     disconnect,
     removeConnection,
     setDefaultConnection,
+    ensureServerConnection,
     refreshStatuses,
     syncConnectionStatuses,
   } = useConnections();
   const { toast } = useToast();
   const navigate = useNavigate({ from: "/" });
   const [addOpen, setAddOpen] = useState(false);
+  const [didAutoConnect, setDidAutoConnect] = useState(false);
   const isURLHTTPS = useMemo(() => location.protocol === "https:", []);
   const { t } = useTranslation("connections");
 
   // On first mount, sync statuses and refresh
   // biome-ignore lint/correctness/useExhaustiveDependencies: This can cause the icon to refresh too often
   useEffect(() => {
+    ensureServerConnection();
     syncConnectionStatuses();
     refreshStatuses();
   }, []);
+
+  useEffect(() => {
+    const defaultServerUrl = DEFAULT_SERVER_CONNECTION_URL;
+    if (
+      didAutoConnect ||
+      !AUTO_CONNECT_DEFAULT_SERVER_CONNECTION ||
+      !defaultServerUrl
+    ) {
+      return;
+    }
+
+    const serverConnection = connections.find(
+      (connection) =>
+        connection.type === "http" &&
+        connection.url.replace(/\/$/, "") ===
+          defaultServerUrl.replace(/\/$/, ""),
+    );
+    if (!serverConnection) {
+      return;
+    }
+
+    if (
+      serverConnection.status === "connected" ||
+      serverConnection.status === "configured" ||
+      serverConnection.status === "connecting" ||
+      serverConnection.status === "configuring"
+    ) {
+      setDidAutoConnect(true);
+      return;
+    }
+
+    setDidAutoConnect(true);
+    void connect(serverConnection.id, { allowPrompt: false }).then((ok) => {
+      if (!ok && ALERT_ON_CONNECTION_FAILURE) {
+        if (typeof window !== "undefined") {
+          window.alert(
+            `Could not connect to ${defaultServerUrl}. Use the Connect button to retry.`,
+          );
+        }
+      }
+    });
+  }, [didAutoConnect, connections, connect]);
+
   const sorted = useMemo(() => {
     const copy = [...connections];
     return copy.sort((a, b) => {
@@ -159,6 +210,13 @@ export const Connections = () => {
                 });
                 if (ok) {
                   navigate({ to: "/" });
+                } else if (ALERT_ON_CONNECTION_FAILURE) {
+                  const connectionTarget = c.type === "http" ? c.url : c.name;
+                  if (typeof window !== "undefined") {
+                    window.alert(
+                      `Could not connect to ${connectionTarget}. Please retry.`,
+                    );
+                  }
                 }
               }}
               onDisconnect={async () => {
@@ -205,6 +263,13 @@ export const Connections = () => {
                 });
                 if (ok) {
                   navigate({ to: "/" });
+                } else if (ALERT_ON_CONNECTION_FAILURE) {
+                  const connectionTarget = c.type === "http" ? c.url : c.name;
+                  if (typeof window !== "undefined") {
+                    window.alert(
+                      `Could not connect to ${connectionTarget}. Please retry.`,
+                    );
+                  }
                 }
               }}
             />

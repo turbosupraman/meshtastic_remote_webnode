@@ -7,6 +7,9 @@ interface ViteTypeOptions {
 interface ImportMetaEnv {
   readonly VITE_COMMIT_HASH: string;
   readonly VITE_VERSION: string;
+  readonly VITE_DEFAULT_MESHTASTIC_URL?: string;
+  readonly VITE_DEFAULT_MESHTASTIC_AUTOCONNECT?: string;
+  readonly VITE_DEFAULT_MESHTASTIC_ALERT_ON_FAIL?: string;
 }
 
 interface ImportMeta {
