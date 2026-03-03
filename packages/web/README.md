@@ -110,6 +110,43 @@ The following `VITE_` variables are optional for self-hosted deployments:
 - `VITE_DEFAULT_MESHTASTIC_ALERT_ON_FAIL`: Show a browser alert if a connection
   attempt fails when set to `true`/`1`/`yes`/`on`.
 
+### Self-hosted default connection workflow
+
+These variables are evaluated at build time by Vite. After changing any
+`VITE_` value, rebuild and restart the web client service.
+
+Example build-time config:
+
+```bash
+export VITE_DEFAULT_MESHTASTIC_URL="http://127.0.0.1:4403"
+export VITE_DEFAULT_MESHTASTIC_AUTOCONNECT="true"
+export VITE_DEFAULT_MESHTASTIC_ALERT_ON_FAIL="true"
+pnpm run build
+```
+
+Recommended runtime checks after deployment:
+
+```bash
+curl -fsS http://127.0.0.1:4403/healthz
+curl -fsS http://127.0.0.1:5175/
+```
+
+### Raspberry Pi remote deployment checklist
+
+To run the same setup on a remote Raspberry Pi, prepare:
+
+- SSH access (`user@host`) from the automation machine.
+- `sudo` privileges on the Pi for systemd service setup.
+- A connected Meshtastic radio on the Pi USB port.
+- The target web and bridge ports (for example `5175` and `4403`).
+- Node.js + pnpm installed (or permission for setup during install).
+
+Once those are available, deployment is repeatable:
+- Configure bridge service to use the radio serial device.
+- Build web client with the `VITE_DEFAULT_MESHTASTIC_*` variables.
+- Install/enable systemd services for both bridge and web client.
+- Reboot once to confirm both services auto-start cleanly.
+
 ### Building and Packaging
 
 Build the project:
