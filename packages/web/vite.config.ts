@@ -77,7 +77,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
-      port: 3000,
+      port: 5174,
       headers: {
         "Content-Security-Policy": CONTENT_SECURITY_POLICY,
         "Cross-Origin-Opener-Policy": "same-origin",
@@ -87,6 +87,9 @@ export default defineConfig(({ mode }) => {
           "max-age=63072000; includeSubDomains; preload",
         "Referrer-Policy": "strict-origin-when-cross-origin",
       },
+    },
+    preview: {
+      allowedHosts: ["aiserver.tail3f0b08.ts.net"],
     },
   };
 });
