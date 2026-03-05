@@ -42,23 +42,57 @@ const normalizeHttpEndpoint = (rawUrl: string): string => {
   }
 };
 
-const parseBooleanEnv = (value?: string): boolean =>
-  /^(1|true|yes|on)$/i.test((value ?? "").trim());
+const buildHistoryScope = (connection?: Connection): string | undefined => {
+  if (!connection || connection.type !== "http") {
+    return undefined;
+  }
+  const normalized = normalizeHttpEndpoint(connection.url).toLowerCase();
+  return normalized ? `http:${normalized}` : undefined;
+};
+
+const parseBooleanEnv = (
+  value: string | undefined,
+  defaultValue: boolean,
+): boolean => {
+  if (value === undefined) {
+    return defaultValue;
+  }
+  return /^(1|true|yes|on)$/i.test(value.trim());
+};
+
+const inferDefaultMeshtasticUrl = (): string | undefined => {
+  if (typeof window === "undefined") {
+    return undefined;
+  }
+  const proto = window.location.protocol === "https:" ? "https:" : "http:";
+  const host = window.location.hostname;
+  if (!host) {
+    return undefined;
+  }
+  return `${proto}//${host}:4403`;
+};
 
 const defaultMeshtasticUrl = (import.meta.env.VITE_DEFAULT_MESHTASTIC_URL ?? "")
   .toString()
   .trim();
+const inferredMeshtasticUrl = inferDefaultMeshtasticUrl();
+const resolvedDefaultMeshtasticUrl =
+  inferredMeshtasticUrl || defaultMeshtasticUrl;
 
 export const DEFAULT_SERVER_CONNECTION_URL = defaultMeshtasticUrl
   ? normalizeHttpEndpoint(defaultMeshtasticUrl)
+  : resolvedDefaultMeshtasticUrl
+    ? normalizeHttpEndpoint(resolvedDefaultMeshtasticUrl)
   : undefined;
 
 export const AUTO_CONNECT_DEFAULT_SERVER_CONNECTION = parseBooleanEnv(
   import.meta.env.VITE_DEFAULT_MESHTASTIC_AUTOCONNECT,
+  DEFAULT_SERVER_CONNECTION_URL !== undefined,
 );
 
 export const ALERT_ON_CONNECTION_FAILURE = parseBooleanEnv(
   import.meta.env.VITE_DEFAULT_MESHTASTIC_ALERT_ON_FAIL,
+  false,
 );
 
 export function useConnections() {
@@ -187,6 +221,7 @@ export function useConnections() {
         deviceId = undefined;
       }
       deviceId = deviceId ?? randId();
+      const historyScope = buildHistoryScope(conn);
 
       const device = addDevice(deviceId);
       const nodeDB = addNodeDB(deviceId);
@@ -195,7 +230,7 @@ export function useConnections() {
 
       setSelectedDevice(deviceId);
       device.addConnection(meshDevice); // This stores meshDevice in Device.connection
-      subscribeAll(device, meshDevice, messageStore, nodeDB);
+      subscribeAll(device, meshDevice, messageStore, nodeDB, { historyScope });
 
       // Store transport locally for cleanup (BT/Serial only)
       const transportHandle = btDevice ?? serialPort;

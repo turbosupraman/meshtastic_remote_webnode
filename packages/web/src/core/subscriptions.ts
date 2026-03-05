@@ -1,5 +1,6 @@
 import PacketToMessageDTO from "@core/dto/PacketToMessageDTO.ts";
 import { useNewNodeNum } from "@core/hooks/useNewNodeNum";
+import { historySync } from "@core/services/historySync.ts";
 import {
   type Device,
   type MessageStore,
@@ -7,13 +8,40 @@ import {
   type NodeDB,
 } from "@core/stores";
 import { type MeshDevice, Protobuf } from "@meshtastic/core";
+
+type SubscribeAllOptions = {
+  historyScope?: string;
+};
+
 export const subscribeAll = (
   device: Device,
   connection: MeshDevice,
   messageStore: MessageStore,
   nodeDB: NodeDB,
+  options?: SubscribeAllOptions,
 ) => {
   let myNodeNum = 0;
+  let hydratedFromSharedHistory = false;
+
+  const hydrateFromSharedHistory = async () => {
+    if (
+      hydratedFromSharedHistory ||
+      !options?.historyScope ||
+      !historySync.isEnabled() ||
+      myNodeNum <= 0
+    ) {
+      return;
+    }
+
+    hydratedFromSharedHistory = true;
+    const remoteMessages = await historySync.pullMessages({
+      scope: options.historyScope,
+      myNodeNum,
+    });
+    for (const message of remoteMessages) {
+      messageStore.saveMessage(message);
+    }
+  };
 
   connection.events.onDeviceMetadataPacket.subscribe((metadataPacket) => {
     device.addMetadata(metadataPacket.from, metadataPacket.data);
@@ -57,6 +85,7 @@ export const subscribeAll = (
   connection.events.onMyNodeInfo.subscribe((nodeInfo) => {
     useNewNodeNum(device.id, nodeInfo);
     myNodeNum = nodeInfo.myNodeNum;
+    void hydrateFromSharedHistory();
   });
 
   connection.events.onUserPacket.subscribe((user) => {
@@ -89,6 +118,13 @@ export const subscribeAll = (
     const dto = new PacketToMessageDTO(messagePacket, myNodeNum);
     const message = dto.toMessage();
     messageStore.saveMessage(message);
+    if (options?.historyScope && myNodeNum > 0) {
+      void historySync.pushMessage({
+        scope: options.historyScope,
+        myNodeNum,
+        message,
+      });
+    }
 
     if (message.type === MessageType.Direct) {
       if (message.to === myNodeNum) {

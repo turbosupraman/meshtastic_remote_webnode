@@ -265,7 +265,7 @@ export default function AddConnectionDialog({
     dialogStateInitializer(isHTTPS ? { protocol: "https" } : {}),
   );
   const { unsupported } = useBrowserFeatureDetection();
-  const { t } = useTranslation();
+  const { t } = useTranslation("dialog");
 
   const bluetoothSupported =
     typeof navigator !== "undefined" && "bluetooth" in navigator;

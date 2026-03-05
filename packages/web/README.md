@@ -109,6 +109,10 @@ The following `VITE_` variables are optional for self-hosted deployments:
   connection on page load when set to `true`/`1`/`yes`/`on`.
 - `VITE_DEFAULT_MESHTASTIC_ALERT_ON_FAIL`: Show a browser alert if a connection
   attempt fails when set to `true`/`1`/`yes`/`on`.
+- `VITE_HISTORY_SYNC_URL`: Optional shared history API base URL
+  (example: `http://127.0.0.1:4410/api/history`).
+  When set, message history is synced across browsers/devices that connect to
+  the same Meshtastic HTTP endpoint.
 
 ### Self-hosted default connection workflow
 
@@ -121,6 +125,7 @@ Example build-time config:
 export VITE_DEFAULT_MESHTASTIC_URL="http://127.0.0.1:4403"
 export VITE_DEFAULT_MESHTASTIC_AUTOCONNECT="true"
 export VITE_DEFAULT_MESHTASTIC_ALERT_ON_FAIL="true"
+export VITE_HISTORY_SYNC_URL="http://127.0.0.1:4410/api/history"
 pnpm run build
 ```
 

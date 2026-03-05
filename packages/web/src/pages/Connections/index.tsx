@@ -114,6 +114,10 @@ export const Connections = () => {
 
     setDidAutoConnect(true);
     void connect(serverConnection.id, { allowPrompt: false }).then((ok) => {
+      if (ok) {
+        navigate({ to: "/" });
+        return;
+      }
       if (!ok && ALERT_ON_CONNECTION_FAILURE) {
         if (typeof window !== "undefined") {
           window.alert(
