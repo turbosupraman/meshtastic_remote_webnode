@@ -112,7 +112,10 @@ The following `VITE_` variables are optional for self-hosted deployments:
 - `VITE_HISTORY_SYNC_URL`: Optional shared history API base URL
   (example: `http://127.0.0.1:4410/api/history`).
   When set, message history is synced across browsers/devices that connect to
-  the same Meshtastic HTTP endpoint.
+  the same Meshtastic HTTP endpoint. If not set, the web client will
+  auto-discover history endpoints in this order:
+  1) `${window.location.origin}/api/history`
+  2) `${window.location.protocol}//${window.location.hostname}:4410/api/history`
 
 ### Self-hosted default connection workflow
 
