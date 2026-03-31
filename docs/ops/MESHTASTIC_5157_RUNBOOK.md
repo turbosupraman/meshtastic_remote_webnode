@@ -105,3 +105,33 @@ Non-zero packet sizes on some polls indicate radio traffic is flowing.
 - Do not run standalone `ghcr.io/meshtastic/web` on `:5157` when using the bridge-backed systemd setup.
 - Keep homepage tile URL aligned with the real web service port.
 - Prefer systemd services over temporary containers for Meshtastic on this host.
+
+## 2026-03-27 Freeze Triage Notes
+
+- Symptom reported: web UI appeared frozen/intermittent.
+- Verified healthy endpoints:
+  - `http://127.0.0.1:5157` returned HTTP 200
+  - `http://127.0.0.1:4403/healthz` returned `ok`
+  - `http://127.0.0.1:4410/healthz` returned `{"ok": true}`
+- Verified bridge packet activity:
+  - `/api/v1/fromradio?all=false` returned non-zero payload sizes during sample loop.
+- Verified host-header path:
+  - `Host: aiserver.tail3f0b08.ts.net` on `:5157` returned HTTP 200.
+- Recovery action performed:
+  - restarted `meshtastic-web-client.service`
+  - service came back `active (running)` and rebuilt/served successfully.
+
+Quick commands used:
+
+```bash
+curl -i --max-time 5 http://127.0.0.1:5157 | head -n 20
+curl -i --max-time 5 http://127.0.0.1:4403/healthz
+curl -i --max-time 5 http://127.0.0.1:4410/healthz
+for i in $(seq 1 8); do
+  n=$(curl -sS --max-time 4 "http://127.0.0.1:4403/api/v1/fromradio?all=false" | wc -c)
+  echo "$i $n"
+  sleep 0.5
+done
+sudo systemctl restart meshtastic-web-client.service
+systemctl --no-pager --full status meshtastic-web-client.service
+```
